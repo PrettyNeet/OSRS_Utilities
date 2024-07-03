@@ -1,3 +1,4 @@
+#Items are referenced from here: https://oldschool.runescape.wiki/w/Module:GEIDs/data.json
 herbs = {
     "Guam": {"seed_id": 5291, "herb_id": 199},
     "Marrentill": {"seed_id": 5292, "herb_id": 201},
@@ -13,4 +14,13 @@ herbs = {
     "Lantadyme": {"seed_id": 5302, "herb_id": 2485},
     "Dwarf weed": {"seed_id": 5303, "herb_id": 217},
     "Torstol": {"seed_id": 5304, "herb_id": 219}
+}
+fish = {
+    "Tuna": {"raw_id": 359, "cooked_id": 361},
+    "Lobster": {"raw_id": 377, "cooked_id": 379},
+    "Swordfish": {"raw_id": 371, "cooked_id": 373},
+    "Monkfish": {"raw_id": 7944, "cooked_id": 7946},
+    "Shark": {"raw_id": 383, "cooked_id": 385},
+    "Anglerfish": {"raw_id": 13439, "cooked_id": 13441},
+    "Manta Ray": {"raw_id": 389, "cooked_id": 391},
 }

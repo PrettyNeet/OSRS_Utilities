@@ -1,35 +1,6 @@
-import requests
 import math
-from config.settings import HEADERS, DEBUG
-
-#TODO set a user selection option to determine if /latest is being used or /1h
-#grabs latest prices from wiki API, returns the entire list of all items to save an API resource
-def fetch_latest_prices():
-    url = "https://prices.runescape.wiki/api/v1/osrs/latest"
-    response = requests.get(url, headers=HEADERS) #osrs wiki demands custom user-agent headers, defined in config.yaml. python requests are blocked by default
-    data = response.json()
-
-    if "data" not in data:
-        raise ValueError("Error fetching data from API")
-    return data["data"]
-
-#skill effect on yield based on osrs wiki herb farm calculator
-def skill_interp(low, high, level):
-    value = (low * (99 - level) / 98) + (high * (level - 1) / 98) + 1
-    return min(max(value / 256, 0), 1)
-
-# Calculate the estimated yield based on farming level and bonuses
-def generate_estimated_yield(farming_level, low_cts, high_cts, harvest_lives, item_bonus, diary_bonus, attas_bonus):
-    low_cts_final = math.floor(low_cts * (1 + item_bonus))
-    low_cts_final += diary_bonus
-    low_cts_final = math.floor(low_cts_final * (1 + attas_bonus))
-    
-    high_cts_final = math.floor(high_cts * (1 + item_bonus))
-    high_cts_final += diary_bonus
-    high_cts_final = math.floor(high_cts_final * (1 + attas_bonus))
-    
-    chance_to_save = skill_interp(low_cts_final, high_cts_final, farming_level)
-    return harvest_lives / (1 - chance_to_save)
+from bot.utils.helpers import skill_interp, generate_estimated_yield
+from config.settings import DEBUG
 
 # Calculate profit based on user inputs and real-time prices
 def calculate_custom_profit(prices, herbs, farming_level, patches, weiss, trollheim, hosidius, fortis, compost, kandarin_diary, kourend, magic_secateurs, farming_cape, bottomless_bucket):
