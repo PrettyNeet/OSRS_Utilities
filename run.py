@@ -1,5 +1,5 @@
 import os
-from bot.bot import bot
+from bot.bot import bot #imported bot class from bot.py
 
 #defines the async function to setup and start the bot
 async def main():

@@ -12,23 +12,23 @@ This is a Discord bot that fetches the latest prices from the Old School Runesca
 
 ```bash
 osrs_utilities/
-├── bot/
+├── bot/ 
 │   ├── __init__.py
-│   ├── bot.py
-│   ├── commands.py
-│   ├── utils.py
+│   ├── bot.py 
+│   ├── commands.py #-contains command logic
+│   ├── utils.py #-contains API fetch and calc logic
 ├── config/
 │   ├── __init__.py
-│   ├── config.yaml
-│   ├── settings.py
+│   ├── config.yaml #-contains the bot config values
+│   ├── settings.py #-loads all settings from .env and config
 ├── data/
 │   ├── __init__.py
-│   ├── items.py
+│   ├── items.py #-sets all item IDs required
 ├── .env
 ├── .gitignore
 ├── LICENSE
 ├── README.md
-└── run.py
+└── run.py #-main logic to run/start the bot
 ```
 
 ## Setup
@@ -120,4 +120,5 @@ The farming yield logic is heavy based on the [herb farming calculator](https://
 
 ## License
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 This project is licensed under the MIT License.

@@ -2,6 +2,7 @@ import requests
 import math
 from config.settings import HEADERS, DEBUG
 
+#TODO set a user selection option to determine if /latest is being used or /1h
 #grabs latest prices from wiki API, returns the entire list of all items to save an API resource
 def fetch_latest_prices():
     url = "https://prices.runescape.wiki/api/v1/osrs/latest"
