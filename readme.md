@@ -112,6 +112,10 @@ To add new commands and features, follow these steps:
 
 Feel free to submit issues or pull requests if you have any improvements or features you would like to add.
 
+## Acknowledgements
+
+This project was heavily inspired by the [OSRS Wiki](https://oldschool.runescape.wiki/), which provides a wealth of information and tools for Old School RuneScape players. Special thanks to the contributors of the OSRS Wiki for their extensive work in maintaining and updating the resources that make projects like this possible.
+
 ## License
 
 This project is licensed under the MIT License.
