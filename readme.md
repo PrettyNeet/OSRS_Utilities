@@ -80,7 +80,6 @@ osrs_utilities/
 To enable or disable debugging, set the debug value in config/config.yaml:
 
 ```yaml
-Copy code
 debug: true
 ```
 
