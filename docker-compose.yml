@@ -1,0 +1,12 @@
+version: '3.4'
+
+services:
+  bot:
+    image: accurateherbchecker
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+    volumes:
+      - .:/app
