@@ -10,22 +10,26 @@ This is a Discord bot that fetches the latest prices from the Old School Runesca
 
 ## Folder Structure
 
+```bash
 osrs_utilities/
 ├── bot/
 │   ├── __init__.py
 │   ├── bot.py
 │   ├── commands.py
-│   └── utils.py
+│   ├── utils.py
 ├── config/
 │   ├── __init__.py
+│   ├── config.yaml
 │   ├── settings.py
 ├── data/
-│   └── items.py
+│   ├── __init__.py
+│   ├── items.py
 ├── .env
-├── config.yaml
-├── requirements.txt
-├── run.py
-└── README.md
+├── .gitignore
+├── LICENSE
+├── README.md
+└── run.py
+```
 
 ## Setup
 
@@ -39,7 +43,7 @@ osrs_utilities/
 1. __Clone the repository:__
 
     ```bash
-    git clone 
+    git clone https://github.com/PrettyNeet/OSRS_Utilities
     cd osrs_utilities
     ```
 
@@ -71,6 +75,16 @@ osrs_utilities/
 
 - Add your bot to your Discord server using the OAuth2 URL generated in the Discord Developer Portal.
 - Use the `!herb_profit` command in your Discord server to see the profit data.
+
+## Debugging
+To enable or disable debugging, set the debug value in config/config.yaml:
+
+```yaml
+Copy code
+debug: true
+```
+
+When debugging is enabled, additional information will be printed to the console to help diagnose issues.
 
 ## Adding New Commands and Features
 
