@@ -1,12 +1,11 @@
 import os
 import sys
-import discord
 from discord.ext import commands
+from config.settings import BOT_PREFIX, INTENTS
 
 # Ensure the project root is in the system path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from config.settings import BOT_PREFIX, INTENTS
 
 class MyBot(commands.Bot):
     def __init__(self):
