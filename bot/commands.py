@@ -62,7 +62,9 @@ class FormatSelectView(discord.ui.View):
             for index, row in df_sorted.iterrows():
                 table_rows += f"{row['Herb']:<12} {row['Seed Price']:<12} {row['Grimy Herb Price']:<12} {int(row['Profit per Run']):<15}\n"
             table = f"```{table_header}{table_rows}```"
-            await self.interaction.followup.send(table)
+            #await self.interaction.followup.send(table)
+            await self.interaction.followup.send(content=f"{self.interaction.user.mention} Here are the results:\n{table}")
+
         elif format_choice == "embed":
             embed = discord.Embed(title="Herb Profit per Run", color=discord.Color.green())
             embed.set_author(name=self.interaction.user.display_name, icon_url=self.interaction.user.display_avatar.url)
@@ -76,7 +78,9 @@ class FormatSelectView(discord.ui.View):
                     ),
                     inline=False
                 )
-            await self.interaction.followup.send(embed=embed)
+            #await self.interaction.followup.send(embed=embed)
+            await self.interaction.followup.send(content=f"{self.interaction.user.mention} Here are the results:", embed=embed)
+
 
 #cog to handle profit calc command
 class HerbProfit(commands.Cog):
