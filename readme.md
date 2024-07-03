@@ -77,6 +77,7 @@ osrs_utilities/
 - Use the `!herb_profit` command in your Discord server to see the profit data.
 
 ## Debugging
+
 To enable or disable debugging, set the debug value in config/config.yaml:
 
 ```yaml
