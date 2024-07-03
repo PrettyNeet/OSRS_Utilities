@@ -116,6 +116,8 @@ Feel free to submit issues or pull requests if you have any improvements or feat
 
 This project was heavily inspired by the [OSRS Wiki](https://oldschool.runescape.wiki/), which provides a wealth of information and tools for Old School RuneScape players. Special thanks to the contributors of the OSRS Wiki for their extensive work in maintaining and updating the resources that make projects like this possible.
 
+The farming yield logic is heavy based on the [herb farming calculator](https://oldschool.runescape.wiki/w/Calculator:Farming/Herbs)
+
 ## License
 
 This project is licensed under the MIT License.

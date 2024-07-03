@@ -1,0 +1,15 @@
+# Configuration settings
+bot_prefix: "/"
+intents:
+  messages: true
+  guilds: true
+  reactions: false
+  members: false
+  presences: false
+  message_content: true
+
+headers:
+  user_agent: "Herb Run - Realtime Check"
+  from: "@mistrustful on discord and osrs"
+
+debug: false
