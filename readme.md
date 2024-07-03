@@ -28,7 +28,7 @@ Please feel free to submit ideas (as issues) or pull requests for requested/nice
 
 ### New Commands 🎣🔥
 
-- [ ] **Raw Fish vs. Cooked Fish Price Check**:
+- [x] **Raw Fish vs. Cooked Fish Price Check**:
   - Fetch current Grand Exchange prices for raw fish 🐟.
   - Fetch current Grand Exchange prices for cooked fish 🍣.
   - Calculate the potential profit from cooking each type of fish 💰.
