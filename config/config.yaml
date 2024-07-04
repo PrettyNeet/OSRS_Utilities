@@ -12,4 +12,4 @@ headers:
   user_agent: "Herb Run - Realtime Check"
   from: "@mistrustful on discord and osrs"
 
-debug: true
+debug: false
