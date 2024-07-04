@@ -62,7 +62,7 @@ def calculate_custom_profit(prices, herbs, farming_level, patches, weiss, trollh
                 if "Hosidius" in protected_names and kourend:
                     expected_yield_protected = generate_estimated_yield(
                         farming_level, low_cts, high_cts, harvest_lives, item_bonus, kourend_bonus, attas_bonus)
-                else:
+                else:  # change logic to check for kandarin patches (Catherby)
                     expected_yield_protected = generate_estimated_yield(
                         farming_level, low_cts, high_cts, harvest_lives, item_bonus, kandarin_bonus, attas_bonus)
                 total_yield_protected += expected_yield_protected

@@ -17,11 +17,11 @@ herbs = {
 }
 
 fish = {
-    "Tuna": {"raw_id": 359, "cooked_id": 361},
-    "Lobster": {"raw_id": 377, "cooked_id": 379},
-    "Swordfish": {"raw_id": 371, "cooked_id": 373},
-    "Monkfish": {"raw_id": 7944, "cooked_id": 7946},
-    "Shark": {"raw_id": 383, "cooked_id": 385},
-    "Anglerfish": {"raw_id": 13439, "cooked_id": 13441},
-    "Manta Ray": {"raw_id": 389, "cooked_id": 391}
+    "Tuna": {"raw_id": 359, "cooked_id": 361, "xp_each": 100},
+    "Lobster": {"raw_id": 377, "cooked_id": 379, "xp_each": 120},
+    "Swordfish": {"raw_id": 371, "cooked_id": 373, "xp_each": 140},
+    "Monkfish": {"raw_id": 7944, "cooked_id": 7946, "xp_each": 150},
+    "Shark": {"raw_id": 383, "cooked_id": 385, "xp_each": 210},
+    "Anglerfish": {"raw_id": 13439, "cooked_id": 13441, "xp_each": 230},
+    "Manta Ray": {"raw_id": 389, "cooked_id": 391, "xp_each": 216.3}
 }
