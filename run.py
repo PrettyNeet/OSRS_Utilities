@@ -7,6 +7,7 @@ async def main():
     await bot.setup_hook()
     await bot.load_extension("bot.commands.herb_profit")
     await bot.load_extension("bot.commands.fish_profit")
+    await bot.load_extension("bot.commands.duel")
     await bot.start(os.getenv("DISCORD_BOT_TOKEN"))
 
 # checks to see if script is run directly

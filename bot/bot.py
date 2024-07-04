@@ -10,6 +10,7 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         await self.load_extension("bot.commands.herb_profit")
         await self.load_extension("bot.commands.fish_profit")
+        await self.load_extension("bot.commands.duel")
 
 
 bot = MyBot()

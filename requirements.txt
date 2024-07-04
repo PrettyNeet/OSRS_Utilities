@@ -3,3 +3,4 @@ pandas
 requests
 python-dotenv
 pyyaml
+sqlite3
