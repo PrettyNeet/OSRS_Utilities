@@ -7,7 +7,7 @@ def fetch_latest_prices():
     url = "https://prices.runescape.wiki/api/v1/osrs/latest"
     response = requests.get(url, headers=HEADERS)  # OSRS wiki demands custom user-agent headers, defined in config.yaml. python requests are blocked by default
     data = response.json()
-    
+
     if "data" not in data:
         raise ValueError("Error fetching data from API")
     return data["data"]
