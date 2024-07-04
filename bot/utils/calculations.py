@@ -3,7 +3,7 @@ from config.settings import DEBUG
 
 
 # Calculate profit based on user inputs and real-time prices
-def calculate_custom_profit(prices, herbs, farming_level, patches, weiss, trollheim, hosidius, fortis, compost, kandarin_diary, kourend, magic_secateurs, farming_cape, bottomless_bucket, attas):
+def calculate_custom_profit(prices, herbs, farming_level, patches, weiss, trollheim, hosidius, fortis, compost, kandarin_diary, kourend, magic_secateurs, farming_cape, bottomless_bucket, attas, price_key):
     # Constants and multipliers
     compost_life_value = {'None': 0, 'Compost': 1, 'Supercompost': 2, 'Ultracompost': 3}
     item_bonus = 0.1 if magic_secateurs else 0
@@ -45,8 +45,15 @@ def calculate_custom_profit(prices, herbs, farming_level, patches, weiss, trollh
         if seed_id_str not in prices or herb_id_str not in prices:
             continue
 
-        seed_price = prices[seed_id_str]["high"]
-        herb_price = prices[herb_id_str]["high"]
+        seed_price = prices[seed_id_str][price_key]
+        herb_price = prices[herb_id_str][price_key]
+        
+        if DEBUG:
+            print(f"price type: {price_key}\n")
+            print(f"Herb: {herb}, Seed Price: {seed_price}, Herb Price: {herb_price}")
+            
+        if seed_price is None or herb_price is None:
+            continue
 
         # Calculate expected yield using detailed mechanics
         expected_yield_unprotected = generate_estimated_yield(

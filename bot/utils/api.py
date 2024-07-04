@@ -11,3 +11,12 @@ def fetch_latest_prices():
     if "data" not in data:
         raise ValueError("Error fetching data from API")
     return data["data"]
+
+
+def fetch_1h_prices():
+    url = "https://prices.runescape.wiki/api/v1/osrs/1h"
+    response = requests.get(url, headers=HEADERS)
+    data = response.json()
+    if "data" not in data:
+        raise ValueError("Error fetching data from API")
+    return data["data"]
