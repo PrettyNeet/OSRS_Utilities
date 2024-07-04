@@ -1,4 +1,3 @@
-import math
 from bot.utils.helpers import generate_estimated_yield
 from config.settings import DEBUG
 
@@ -6,14 +5,12 @@ from config.settings import DEBUG
 # Calculate profit based on user inputs and real-time prices
 def calculate_custom_profit(prices, herbs, farming_level, patches, weiss, trollheim, hosidius, fortis, compost, kandarin_diary, kourend, magic_secateurs, farming_cape, bottomless_bucket, attas):
     # Constants and multipliers
-    compost_chance_reduction = {'None': 1, 'Compost': 2, 'Supercompost': 5, 'Ultracompost': 10}
     compost_life_value = {'None': 0, 'Compost': 1, 'Supercompost': 2, 'Ultracompost': 3}
     item_bonus = 0.1 if magic_secateurs else 0
     item_bonus += 0.05 if farming_cape else 0
     kandarin_bonus = float(kandarin_diary.split('%')[0]) / 100 if kandarin_diary != 'None' else 0
     kourend_bonus = 0.05 if kourend else 0
-    diary_bonus = kandarin_bonus + kourend_bonus 
-    compost_bonus = compost_chance_reduction.get(compost, 1)
+    diary_bonus = kandarin_bonus + kourend_bonus
     compost_life = compost_life_value.get(compost, 0)
     attas_bonus = 0.05 if attas else 0  # Assuming animaType can be checked similarly
 
@@ -54,7 +51,7 @@ def calculate_custom_profit(prices, herbs, farming_level, patches, weiss, trollh
         # Calculate expected yield using detailed mechanics
         expected_yield_unprotected = generate_estimated_yield(
             farming_level, low_cts, high_cts, harvest_lives, item_bonus, diary_bonus, attas_bonus)
-        
+
         # Calculate total yield and profit for unprotected patches
         total_yield_unprotected = expected_yield_unprotected * unprotected_patches
         
