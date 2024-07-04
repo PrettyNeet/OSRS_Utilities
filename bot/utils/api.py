@@ -1,6 +1,7 @@
 import requests
 from config.settings import HEADERS
 
+
 # Grabs latest prices from wiki API, returns the entire list of all items to save an API resource
 def fetch_latest_prices():
     url = "https://prices.runescape.wiki/api/v1/osrs/latest"

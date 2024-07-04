@@ -1,9 +1,11 @@
 import math
 
+
 # Skill effect on yield based on OSRS wiki herb farm calculator
 def skill_interp(low, high, level):
     value = (low * (99 - level) / 98) + (high * (level - 1) / 98) + 1
     return min(max(value / 256, 0), 1)
+
 
 # Calculate the estimated yield based on farming level and bonuses
 def generate_estimated_yield(farming_level, low_cts, high_cts, harvest_lives, item_bonus, diary_bonus, attas_bonus):
@@ -17,6 +19,7 @@ def generate_estimated_yield(farming_level, low_cts, high_cts, harvest_lives, it
     
     chance_to_save = skill_interp(low_cts_final, high_cts_final, farming_level)
     return harvest_lives / (1 - chance_to_save)
+
 
 # Format the profit results into a markdown table
 def format_profit_table(profit_results):

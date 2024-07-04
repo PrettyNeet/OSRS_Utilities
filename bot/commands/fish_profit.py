@@ -5,6 +5,7 @@ from bot.utils.api import fetch_latest_prices
 from data.items import fish
 import pandas as pd
 
+
 class FormatSelectView(discord.ui.View):
     def __init__(self, bot, interaction, fish_prices):
         super().__init__()
@@ -67,7 +68,6 @@ class FishProfit(commands.Cog):
         for fish_name, info in fish.items():
             raw_id_str = str(info["raw_id"])
             cooked_id_str = str(info["cooked_id"])
-            
             raw_price = prices[raw_id_str]["high"]
             cooked_price = prices[cooked_id_str]["high"]
 
@@ -82,6 +82,7 @@ class FishProfit(commands.Cog):
 
         view = FormatSelectView(bot=self.bot, interaction=interaction, fish_prices=profit_results)
         await interaction.response.send_message("Choose the format for the reply:", view=view)
+
 
 async def setup(bot):
     await bot.add_cog(FishProfit(bot))
