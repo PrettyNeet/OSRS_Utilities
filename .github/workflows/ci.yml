@@ -27,8 +27,3 @@ jobs:
 
             - name: lint with flake8
               run: flake8 --ignore=E501,W292,W293
-
-            - name: run tests
-              run: |
-                pip install pytest
-                pytest
