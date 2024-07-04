@@ -2,14 +2,14 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import pandas as pd
-from bot.utils.api import fetch_latest_prices
-from bot.utils.calculations import calculate_custom_profit
+from bot.utils.api import fetch_latest_prices, fetch_1h_prices
+from bot.utils.calculations import calculate_custom_profit, DEBUG
 from data.items import herbs
 
 
 # Setting the VIEW class to handle user format selection, interactive within discord channel message
 class FormatSelectView(discord.ui.View):
-    def __init__(self, bot, interaction, farming_level, patches, weiss, trollheim, hosidius, fortis, kandarin_diary, kourend, magic_secateurs, farming_cape, bottomless_bucket, attas, compost):
+    def __init__(self, bot, interaction, farming_level, patches, weiss, trollheim, hosidius, fortis, kandarin_diary, kourend, magic_secateurs, farming_cape, bottomless_bucket, attas, compost, prices, price_key, price_type):
         super().__init__()
         self.bot = bot
         self.interaction = interaction
@@ -26,6 +26,9 @@ class FormatSelectView(discord.ui.View):
         self.bottomless_bucket = bottomless_bucket
         self.attas = attas
         self.compost = compost
+        self.prices = prices
+        self.price_key = price_key
+        self.price_type = price_type
 
     # Select menu for format, set's the option for the bot to later format the reply
     @discord.ui.select(
@@ -40,13 +43,17 @@ class FormatSelectView(discord.ui.View):
         # Sets the format choice
         format_choice = interaction.data["values"][0]
         await interaction.response.defer()
+        
+        if DEBUG:
+            # Debugging: Print the prices and price_key
+            print("Prices fetched:", self.prices)
+            print("Price key:", self.price_key)
 
-        # Fetch the latest prices and calculate profits
-        latest_prices = fetch_latest_prices()
+        # calculate profits
         profit_results = calculate_custom_profit(
-            latest_prices, herbs, self.farming_level, self.patches, self.weiss,
+            self.prices, herbs, self.farming_level, self.patches, self.weiss,
             self.trollheim, self.hosidius, self.fortis, self.compost, self.kandarin_diary,
-            self.kourend, self.magic_secateurs, self.farming_cape, self.bottomless_bucket, self.attas
+            self.kourend, self.magic_secateurs, self.farming_cape, self.bottomless_bucket, self.attas, self.price_key
         )
 
         # Error handling if API or calc is empty
@@ -59,16 +66,17 @@ class FormatSelectView(discord.ui.View):
         df_sorted = df.sort_values(by="Profit per Run", ascending=False)
 
         # Format and send response based on user choice
+        title = f"results using {self.price_type} prices"
         if format_choice == "markdown":
             table_header = f"{'Herb':<12} {'Seed Price':<12} {'Herb Price':<12} {'Profit per Run':<15}\n{'-'*12} {'-'*12} {'-'*12} {'-'*15}\n"
             table_rows = ""
             for index, row in df_sorted.iterrows():
                 table_rows += f"{row['Herb']:<12} {row['Seed Price']:<12} {row['Grimy Herb Price']:<12} {int(row['Profit per Run']):<15}\n"
-            table = f"```{table_header}{table_rows}```"
+            table = f"```{title}\n{table_header}{table_rows}```"
             await self.interaction.followup.send(content=f"{self.interaction.user.mention} Here are the results:\n{table}")
 
         elif format_choice == "embed":
-            embed = discord.Embed(title="Herb Profit per Run", color=discord.Color.green())
+            embed = discord.Embed(title=title, color=discord.Color.green())
             embed.set_author(name=self.interaction.user.display_name, icon_url=self.interaction.user.display_avatar.url)
             for index, row in df_sorted.iterrows():
                 embed.add_field(
@@ -109,6 +117,10 @@ class HerbProfit(commands.Cog):
             app_commands.Choice(name="Compost", value="Compost"),
             app_commands.Choice(name="Supercompost", value="Supercompost"),
             app_commands.Choice(name="Ultracompost", value="Ultracompost"),
+        ],
+        price_type=[
+            app_commands.Choice(name="Latest", value="latest"),
+            app_commands.Choice(name="1-hour average", value="1h"),
         ]
     )
     async def herb_profit(
@@ -127,14 +139,29 @@ class HerbProfit(commands.Cog):
         bottomless_bucket: bool,
         attas: bool,
         compost: app_commands.Choice[str],
-
+        price_type: app_commands.Choice[str]
     ):
+        if price_type.value == "latest":
+            prices = fetch_latest_prices()
+            price_key = "high"
+        elif price_type.value == "1h":
+            prices = fetch_1h_prices()
+            price_key = "avgHighPrice"
+        else:
+            await self.interaction.followup.send("error is checking price type value")
+            return
+        
+        if DEBUG:
+            # Debugging: Print the prices and price_key
+            print("Prices fetched:", prices)
+            print("Price key:", price_key)
+        
         # Create and send a view select
         view = FormatSelectView(
             bot=self.bot, interaction=interaction, farming_level=farming_level, patches=patches,
             weiss=weiss, trollheim=trollheim, hosidius=hosidius, fortis=fortis, kandarin_diary=kandarin_diary,
             kourend=kourend, magic_secateurs=magic_secateurs, farming_cape=farming_cape, bottomless_bucket=bottomless_bucket, attas=attas,
-            compost=compost.value
+            compost=compost.value, prices=prices, price_key=price_key, price_type=price_type.value
         )
         await interaction.response.send_message("Choose the format for the reply:", view=view)
 

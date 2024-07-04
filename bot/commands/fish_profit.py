@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from bot.utils.api import fetch_latest_prices
+from bot.utils.api import fetch_latest_prices, fetch_1h_prices
 from data.items import fish
 import pandas as pd
 
@@ -51,7 +51,7 @@ class FormatSelectView(discord.ui.View):
                         f"**Cooked Price:** {row['Cooked Price']}\n"
                         f"**Profit:** {int(row['Profit'])}\n"
                         f"**XP/hr:** {row['XP/hr']}\n"
-                        f"**GP/hr:** {row['XP/hr']}\n"
+                        f"**GP/hr:** {row['GP/hr']}\n"
                     ),
                     inline=False
                 )
@@ -63,8 +63,23 @@ class FishProfit(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="fish_profit", description="Calculate the potential profit from cooking fish.")
-    async def fish_profit(self, interaction: discord.Interaction):
-        prices = fetch_latest_prices()
+    @app_commands.choices(
+        price_type=[
+            app_commands.Choice(name="Latest", value="latest"),
+            app_commands.Choice(name="1-hour average", value="1h"),
+        ]
+    )
+    async def fish_profit(self, interaction: discord.Interaction, price_type: app_commands.Choice[str]):
+        if price_type.value == "latest":
+            prices = fetch_latest_prices()
+            price_key = "high"
+        elif price_type.value == "1h":
+            prices = fetch_1h_prices()
+            price_key = "avgHighPrice"
+        else:
+            await self.interaction.followup.send("error in price type selection")
+            return
+            
         cooking_rate = 1435
 
         profit_results = []
@@ -72,8 +87,8 @@ class FishProfit(commands.Cog):
             raw_id_str = str(info["raw_id"])
             cooked_id_str = str(info["cooked_id"])
             fish_xp_each = info["xp_each"]
-            raw_price = prices[raw_id_str]["high"]
-            cooked_price = prices[cooked_id_str]["high"]
+            raw_price = prices[raw_id_str][price_key]
+            cooked_price = prices[cooked_id_str][price_key]
 
             if raw_price and cooked_price:
                 profit_fish = cooked_price - raw_price
