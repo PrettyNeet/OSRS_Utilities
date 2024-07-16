@@ -3,8 +3,12 @@ from discord.ext import commands
 from discord import app_commands
 import pandas as pd
 from bot.utils.api import fetch_latest_prices, fetch_1h_prices
-from bot.utils.calculations import calculate_custom_profit, DEBUG
+from bot.utils.calculations import calculate_custom_profit
+from bot.utils.logger import setup_logging
 from data.items import herbs
+
+# setting the logger
+logger = setup_logging()
 
 
 # Setting the VIEW class to handle user format selection, interactive within discord channel message
@@ -44,10 +48,9 @@ class FormatSelectView(discord.ui.View):
         format_choice = interaction.data["values"][0]
         await interaction.response.defer()
         
-        if DEBUG:
-            # Debugging: Print the prices and price_key
-            print("Prices fetched:", self.prices)
-            print("Price key:", self.price_key)
+        # Debugging: Print the prices and price_key
+        logger.debug("Prices fetched: %s", self.prices)
+        logger.debug("Price key:", self.price_key)
 
         # calculate profits
         profit_results = calculate_custom_profit(
@@ -59,6 +62,7 @@ class FormatSelectView(discord.ui.View):
         # Error handling if API or calc is empty
         if not profit_results:
             await self.interaction.followup.send("No profit data available.")
+            logger.error("No profit data available.")
             return
 
         # Converting results to data frame
@@ -74,6 +78,7 @@ class FormatSelectView(discord.ui.View):
                 table_rows += f"{row['Herb']:<12} {row['Seed Price']:<12} {row['Grimy Herb Price']:<12} {int(row['Profit per Run']):<15}\n"
             table = f"```{title}\n{table_header}{table_rows}```"
             await self.interaction.followup.send(content=f"{self.interaction.user.mention} Here are the results:\n{table}")
+            logger.info("success sending: %s", format_choice)
 
         elif format_choice == "embed":
             embed = discord.Embed(title=title, color=discord.Color.green())
@@ -89,6 +94,7 @@ class FormatSelectView(discord.ui.View):
                     inline=False
                 )
             await self.interaction.followup.send(content=f"{self.interaction.user.mention} Here are the results:", embed=embed)
+            logger.info("success sending: %s", format_choice)
 
 
 class HerbProfit(commands.Cog):
@@ -151,10 +157,9 @@ class HerbProfit(commands.Cog):
             await self.interaction.followup.send("error is checking price type value")
             return
         
-        if DEBUG:
-            # Debugging: Print the prices and price_key
-            print("Prices fetched:", prices)
-            print("Price key:", price_key)
+        # Debugging: Print the prices and price_key
+        logger.debug("Prices fetched: %s", prices)
+        logger.debug("Price key: %s", price_key)
         
         # Create and send a view select
         view = FormatSelectView(

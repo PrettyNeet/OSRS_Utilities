@@ -12,4 +12,9 @@ headers:
   user_agent: "Herb Run - Realtime Check"
   from: "@mistrustful on discord and osrs"
 
-debug: false
+logging:
+  level: INFO #logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  handlers:
+    - type: console
+    - type: file
+      filename: logs/app.log

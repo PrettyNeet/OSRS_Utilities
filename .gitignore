@@ -27,3 +27,5 @@ venv/
 
 # Windows
 Thumbs.db
+
+logs/*.log

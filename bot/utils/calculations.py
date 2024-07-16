@@ -1,5 +1,8 @@
 from bot.utils.helpers import generate_estimated_yield
-from config.settings import DEBUG
+from bot.utils.logger import setup_logging
+
+# setup the logger
+logger = setup_logging()
 
 
 # Calculate profit based on user inputs and real-time prices
@@ -48,9 +51,8 @@ def calculate_custom_profit(prices, herbs, farming_level, patches, weiss, trollh
         seed_price = prices[seed_id_str][price_key]
         herb_price = prices[herb_id_str][price_key]
         
-        if DEBUG:
-            print(f"price type: {price_key}\n")
-            print(f"Herb: {herb}, Seed Price: {seed_price}, Herb Price: {herb_price}")
+        logger.debug("price type: %s", {price_key})
+        logger.debug("Herb: %s", {herb}, "Seed Price: %s", {seed_price}, "Herb Price: %s", {herb_price})
             
         if seed_price is None or herb_price is None:
             continue
@@ -80,19 +82,17 @@ def calculate_custom_profit(prices, herbs, farming_level, patches, weiss, trollh
         profit_per_run = (herb_price * total_yield) - (seed_price * total_patches)
 
         # Debug print statements
-        if DEBUG:
-            print(f"Herb: {herb}")
-            print(f"Seed Price: {seed_price}")
-            print(f"Herb Price: {herb_price}")
-            print(f"CTSLow: {low_cts}")
-            print(f"Expected Yield (Unprotected): {expected_yield_unprotected}")
-            print(f"Expected Yield (Protected): {expected_yield_protected}")
-            print(f"Total Yield (Unprotected): {total_yield_unprotected}")
-            print(f"Total Yield (Protected): {total_yield_protected}")
-            print(f"Total Yield: {total_yield}")
-            print(f"Total Patches: {total_patches}")
-            print(f"Profit per Run: {profit_per_run}")
-            print("-" * 40)
+        logger.debug("Herb:", {herb})
+        logger.debug("Seed Price:", {seed_price})
+        logger.debug("Herb Price:", {herb_price})
+        logger.debug("CTSLow:", {low_cts})
+        logger.debug("Expected Yield (Unprotected):", {expected_yield_unprotected})
+        logger.debug("Expected Yield (Protected):", {expected_yield_protected})
+        logger.debug("Total Yield (Unprotected):", {total_yield_unprotected})
+        logger.debug("Total Yield (Protected):", {total_yield_protected})
+        logger.debug("Total Yield:", {total_yield})
+        logger.debug("Total Patches:", {total_patches})
+        logger.debug("Profit per Run:", {profit_per_run})
 
         results.append({
             "Herb": herb,

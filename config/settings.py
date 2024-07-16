@@ -11,5 +11,3 @@ with open("config/config.yaml", "r") as file:
 BOT_PREFIX = config["bot_prefix"]
 INTENTS = discord.Intents(**config["intents"])
 HEADERS = config["headers"]
-
-DEBUG = config.get("debug", False)

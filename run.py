@@ -1,5 +1,9 @@
 import os
 from bot.bot import bot  # imported bot class from bot.py
+from bot.utils.logger import setup_logging
+
+# setup the logger
+logger = setup_logging()
 
 
 # defines the async function to setup and start the bot
