@@ -1,6 +1,10 @@
 import os
 from discord.ext import commands
 from config.settings import BOT_PREFIX, INTENTS
+from bot.utils.logger import setup_logging
+
+# setup the logger
+logger = setup_logging()
 
 
 class MyBot(commands.Bot):
@@ -11,6 +15,7 @@ class MyBot(commands.Bot):
         await self.load_extension("bot.commands.herb_profit")
         await self.load_extension("bot.commands.fish_profit")
         await self.load_extension("bot.commands.duel")
+        logger.info("loaded all extensions/commands")
 
 
 bot = MyBot()
@@ -18,7 +23,7 @@ bot = MyBot()
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user}')
+    logger.info("Logged in as: %s", {bot.user})
     await bot.tree.sync()
 
 
