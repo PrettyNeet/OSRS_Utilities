@@ -18,7 +18,10 @@ def generate_estimated_yield(farming_level, low_cts, high_cts, harvest_lives, it
     high_cts_final = math.floor(high_cts_final * (1 + attas_bonus))
     
     chance_to_save = skill_interp(low_cts_final, high_cts_final, farming_level)
-    return harvest_lives / (1 - chance_to_save)
+    if chance_to_save == 1:
+        return "Error: No yield calculated"
+    else:
+        return harvest_lives / (1 - chance_to_save)
 
 
 # Format the profit results into a markdown table
