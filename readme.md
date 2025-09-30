@@ -4,15 +4,15 @@
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/PrettyNeet/OSRS_Utilities) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/PrettyNeet/OSRS_Utilities) 
 
-This Discord bot fetches the latest prices from the Old School Runescape Grand Exchange and calculates potential profits from herb farming runs and cooking fish. Unlike the OSRS Wiki herb calculator, this bot uses a different method to fetch Grand Exchange prices for items, providing more accurate current prices.
+This Discord bot fetches Old School RuneScape Grand Exchange prices and computes simple profit estimates (herb farming, fish cooking) and provides an interactive PvP duel system for testing combat mechanics and UI flows. The project is structured to keep API fetching, calculation logic, and Discord UI separate so features are testable and reusable.
 
 ## Commands
 
-The bot commands are configured in a way that the parameters for the command will be prompted and autofilled by the bot.
+Current user-facing commands (slash commands):
 
-```/herb_profit```
-
-```/fish_profit```
+- `/herb_profit` — interactive form to estimate herb farming profit given seed choice and quantity.
+- `/fish_profit` — computes raw vs cooked profit for fish types.
+- `/duel` — (feature branch) challenge another user to a duel; the duel system uses `bot.utils.combat_mechanics` and interactive views in `bot.utils.combat_views`.
 
 ## Roadmap 📋✨
 
@@ -33,7 +33,7 @@ Feel free to submit ideas (as issues) or pull requests for requested or nice-to-
 - [ ] **Item Price Potential**:
   - Fetch Grand Exchange price for high volume + profit margin items 💎.
 
-## Folder Structure
+## Folder Structure (relevant files)
 
 ```bash
 osrs_utilities/
@@ -49,9 +49,12 @@ osrs_utilities/
 │   │   └── # Other command modules
 │   ├── utils/
 │   │   ├── __init__.py
-│   │   ├── api.py  # API fetching logic
-│   │   ├── calculations.py  # Calculation logic
-│   │   └── helpers.py  # Helper functions
+│   │   ├── api.py              # API fetching logic
+│   │   ├── calculations.py     # Farm/fish calculation helpers
+│   │   ├── combat_mechanics.py # PvP combat calculation engine
+│   │   ├── combat_views.py     # Discord UI Views for duel system
+│   │   ├── DButil.py           # DB helpers
+│   │   └── helpers.py          # Helper functions
 ├── config/
 │   ├── __init__.py
 │   ├── config.yaml #-contains the bot config values
@@ -94,7 +97,7 @@ osrs_utilities/
 2. **Install dependencies:**
 
     ```bash
-    pip install -r requirements.txt
+    .venv/bin/pip install -r requirements.txt
     ```
 
 3. **Set up environment variables:**
@@ -116,11 +119,27 @@ osrs_utilities/
     debug:
     ```
 
-5. **Run the bot:**
+5. **Run the bot (local):**
 
     ```bash
-    python .\run.py
+    .venv/bin/python run.py
     ```
+
+## Tests
+
+This project includes unit tests and simulation tests under `tests/`. Key test files:
+
+- `tests/test_combat_mechanics.py` — unit tests for combat math
+- `tests/test_combat_views.py` — UI interaction tests for Views
+- `tests/test_battle_simulation.py` — turn-by-turn battle simulations to validate balance
+
+Run the tests locally with:
+
+```bash
+.venv/bin/pytest -q
+```
+
+If you use a global Python installation, adjust the `python`/`pytest` commands accordingly.
 
 ## Installation (Docker)
 
@@ -166,8 +185,8 @@ To add new commands and features, follow these steps:
 
 1. **Create a new command file:**
 
-- If you have multiple commands related to a feature, you might want to group them in a separate file.
-- create the new command file in /commands/ folder
+- If you have multiple commands related to a feature, group them in a separate file under `bot/commands/`.
+- Commands are implemented as Cogs and registered via a `setup(bot)` async function.
 
 2. **Define the command in the command file:**
 

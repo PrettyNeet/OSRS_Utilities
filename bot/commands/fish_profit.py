@@ -83,7 +83,7 @@ class FishProfit(commands.Cog):
             prices = await fetch_1h_prices(session=session)
             price_key = "avgHighPrice"
         else:
-            await self.interaction.followup.send("error in price type selection")
+            await interaction.response.send_message("error in price type selection", ephemeral=True)
             return
             
         cooking_rate = 1435
@@ -109,8 +109,9 @@ class FishProfit(commands.Cog):
                     "GP/hr": gphr
                 })
 
-    view = FormatSelectView(bot=self.bot, interaction=interaction, fish_prices=profit_results)
-    await interaction.response.send_message("Choose the format for the reply:", view=view, ephemeral=True)
+        # Present the format selection view to the user
+        view = FormatSelectView(bot=self.bot, interaction=interaction, fish_prices=profit_results)
+        await interaction.response.send_message("Choose the format for the reply:", view=view, ephemeral=True)
 
 
 async def setup(bot):
