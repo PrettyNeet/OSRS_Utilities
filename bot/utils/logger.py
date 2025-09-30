@@ -1,36 +1,45 @@
 import logging
 import yaml
 import os
-
+from logging.handlers import RotatingFileHandler
 
 def setup_logging():
-    # load config
-    with open("config/config.yaml", "r") as file:
-        config = yaml.safe_load(file)
+    # Change log directory to be inside /app where we know we have permissions
+    log_dir = '/app/logs'
     
-    logging_level = getattr(logging, config["logging"]["level"].upper(), logging.info)
+    # Create formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
     
-    # create logger
-    logger = logging.getLogger()
-    logger.setLevel(logging_level)
+    # Create logger (idempotent)
+    logger = logging.getLogger('bot')
+    if logger.handlers:
+        # Already configured
+        return logger
+
+    logger.setLevel(logging.INFO)
     
-    # create handlers based on config
-    for handler_config in config["logging"]["handlers"]:
-        if handler_config["type"] == "console":
-            handler = logging.StreamHandler()
-        elif handler_config["type"] == "file":
-            log_dir = os.path.dirname(handler_config["filename"])
-            if not os.path.exists(log_dir):
-                os.makedirs(log_dir)
-            handler = logging.FileHandler(handler_config["filename"])
-        else:
-            continue
+    try:
+        # Try to create log directory
+        os.makedirs(log_dir, exist_ok=True)
         
-        # creating formatter and add to handler
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(funcName)s - %(message)s')
-        handler.setFormatter(formatter)
-        
-        # add handler to logger
-        logger.addHandler(handler)
+        # File handler
+        log_file = os.path.join(log_dir, 'bot.log')
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=1024 * 1024,  # 1MB
+            backupCount=5
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except PermissionError:
+        # Fallback to console only logging if we can't create/write to log file
+        logger.warning("Could not create log directory. Logging to console only.")
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
     
     return logger

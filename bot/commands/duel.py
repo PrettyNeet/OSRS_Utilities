@@ -1,7 +1,10 @@
 import discord
 from discord.ext import commands
-from bot.utils.DButil import get_db_connection, initialize_db, add_predefined_weapons
+from discord import app_commands
+import aiosqlite
+from bot.utils.DButil import get_db_path, get_db_connection, initialize_db, add_predefined_weapons, async_get_db_connection
 
+# Ensure DB is initialized on import (safe)
 initialize_db()
 add_predefined_weapons()
 
@@ -10,29 +13,29 @@ class Duel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name='dm_register')
-    async def register_user(self, ctx):
-        user_id = str(ctx.author.id)
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute('INSERT OR IGNORE INTO users (user_id) VALUES (?)', (user_id,))
-        conn.commit()
-        conn.close()
-        await ctx.send(f"{ctx.author.mention}, you have been registered!")
+    @app_commands.command(name='dm_register', description='Register for duel economy')
+    async def register_user(self, interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        db = await async_get_db_connection()
+        await db.execute('INSERT OR IGNORE INTO users (user_id) VALUES (?)', (user_id,))
+        await db.commit()
+        await db.close()
+        await interaction.response.send_message(f"{interaction.user.mention}, you have been registered!", ephemeral=True)
 
-    @commands.command(name='dm_balance')
-    async def check_balance(self, ctx):
-        user_id = str(ctx.author.id)
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute('SELECT gold FROM users WHERE user_id = ?', (user_id,))
-        user_data = c.fetchone()
-        conn.close()
-        if user_data:
-            await ctx.send(f"{ctx.author.mention}, you have {user_data['gold']} gold.")
+    @app_commands.command(name='dm_balance', description='Check your duel balance')
+    async def check_balance(self, interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        db = await async_get_db_connection()
+        async with db.execute('SELECT gold FROM users WHERE user_id = ?', (user_id,)) as cursor:
+            row = await cursor.fetchone()
+        await db.close()
+
+        if row:
+            gold = row[0]
+            await interaction.response.send_message(f"{interaction.user.mention}, you have {gold} gold.", ephemeral=True)
         else:
-            await ctx.send(f"{ctx.author.mention}, you need to register first by using /dm_register.")
-            
+            await interaction.response.send_message(f"{interaction.user.mention}, you need to register first by using /dm_register.", ephemeral=True)
+    
     @commands.command(name='dm_storage')
     async def view_storage(self, ctx):
         user_id = ctx.author.id

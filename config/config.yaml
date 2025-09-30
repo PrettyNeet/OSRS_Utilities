@@ -18,3 +18,9 @@ logging:
     - type: console
     - type: file
       filename: logs/app.log
+
+cache:
+  ttl_seconds: 30
+
+database:
+  weapons_db_path: "data/db/weapons.db"

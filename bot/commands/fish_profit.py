@@ -22,6 +22,11 @@ class FormatSelectView(discord.ui.View):
         custom_id="select_format"
     )
     async def select_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
+        # Ensure only the original user can interact with this view
+        if interaction.user.id != self.interaction.user.id:
+            await interaction.response.send_message("This menu is not for you.", ephemeral=True)
+            return
+
         format_choice = select.values[0]
         await interaction.response.defer()
 
@@ -70,11 +75,12 @@ class FishProfit(commands.Cog):
         ]
     )
     async def fish_profit(self, interaction: discord.Interaction, price_type: app_commands.Choice[str]):
+        session = getattr(self.bot, 'http_session', None)
         if price_type.value == "latest":
-            prices = fetch_latest_prices()
+            prices = await fetch_latest_prices(session=session)
             price_key = "high"
         elif price_type.value == "1h":
-            prices = fetch_1h_prices()
+            prices = await fetch_1h_prices(session=session)
             price_key = "avgHighPrice"
         else:
             await self.interaction.followup.send("error in price type selection")
@@ -103,8 +109,8 @@ class FishProfit(commands.Cog):
                     "GP/hr": gphr
                 })
 
-        view = FormatSelectView(bot=self.bot, interaction=interaction, fish_prices=profit_results)
-        await interaction.response.send_message("Choose the format for the reply:", view=view)
+    view = FormatSelectView(bot=self.bot, interaction=interaction, fish_prices=profit_results)
+    await interaction.response.send_message("Choose the format for the reply:", view=view, ephemeral=True)
 
 
 async def setup(bot):

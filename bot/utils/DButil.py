@@ -1,14 +1,29 @@
 import sqlite3
+import os
+import aiosqlite
+from typing import Optional
+
+
+def get_db_path() -> str:
+    """Return the DB path from environment or default to local data/db/weapons.db"""
+    return os.getenv('WEAPONS_DB_PATH', os.path.join(os.getcwd(), 'data', 'db', 'weapons.db'))
 
 
 def get_db_connection():
-    conn = sqlite3.connect('duelbot.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+    db_path = get_db_path()
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    return sqlite3.connect(db_path)
+
+
+async def async_get_db_connection() -> aiosqlite.Connection:
+    db_path = get_db_path()
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    return await aiosqlite.connect(db_path)
 
 
 def initialize_db():
     conn = get_db_connection()
+    conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
     # Create a version table if it doesn't exist
@@ -92,6 +107,7 @@ def add_predefined_weapons():
         ('Granite Maul', 35, 5, 15000)
     ]
     conn = get_db_connection()
+    conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.executemany('INSERT OR IGNORE INTO weapons (name, damage, speed, cost) VALUES (?, ?, ?, ?)', weapons)
     conn.commit()

@@ -3,3 +3,7 @@ pandas
 requests
 python-dotenv
 pyyaml
+aiohttp
+aiosqlite
+pytest
+pytest-asyncio

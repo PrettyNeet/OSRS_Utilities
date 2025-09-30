@@ -66,6 +66,7 @@ def calculate_custom_profit(prices, herbs, farming_level, patches, weiss, trollh
         
         # Calculate expected yield for protected patches
         total_yield_protected = 0
+        expected_yield_protected = 0
         if protected_patches > 0:
             for _ in range(protected_patches):
                 if "Hosidius" in protected_names and kourend:
