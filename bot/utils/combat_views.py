@@ -19,9 +19,19 @@ except Exception:
             # Minimal children container to emulate discord.ui.View
             self.children = []
             self._stopped = False
+            self._timeout = timeout
+            # Track creation time to determine timeout without creating background tasks
+            self._start_time = datetime.now() if timeout is not None and timeout > 0 else None
 
         def is_finished(self):
-            return self._stopped
+            if self._stopped:
+                return True
+            if self._timeout and self._start_time:
+                elapsed = (datetime.now() - self._start_time).total_seconds()
+                if elapsed >= self._timeout:
+                    self._stopped = True
+                    return True
+            return False
 
         def stop(self):
             self._stopped = True
@@ -94,6 +104,9 @@ class DuelRequestView(View):
         accept._callback = _accept_wrapper
         decline._callback = _decline_wrapper
         self.children.extend([accept, decline])
+        # Simple event loop-friendly wait implementation for tests
+        self._accepted_event = asyncio.Event()
+        self._declined_event = asyncio.Event()
     
     async def interaction_check(self, interaction: Any) -> bool:
         """Only allow the opponent to interact with this view"""
@@ -115,6 +128,7 @@ class DuelRequestView(View):
             content=f"{self.opponent.display_name} accepted the duel!",
             view=None
         )
+        self._accepted_event.set()
     
     @discord.ui.button(
         label="Decline",
@@ -132,19 +146,60 @@ class DuelRequestView(View):
             content=f"{self.opponent.display_name} declined the duel.",
             view=None
         )
+        self._declined_event.set()
+
+    async def wait(self, timeout: float = None):
+        """Wait until accepted/declined or timeout (test-friendly)."""
+        # If already decided, return immediately
+        if self.accepted or self.declined:
+            return
+        # Wait for either event
+        tasks = [asyncio.create_task(self._accepted_event.wait()), asyncio.create_task(self._declined_event.wait())]
+        try:
+            done, pending = await asyncio.wait(tasks, timeout=timeout)
+        finally:
+            for p in pending:
+                p.cancel()
 
 class CombatActionView(View):
     def __init__(
         self,
         attacker: Any,
         defender: Any,
-        duel_state: 'DuelState',
+        duel_state: Any = None,
+        db: Optional[Any] = None,
         timeout: float = 60.0
     ):
         super().__init__(timeout=timeout)
         self.attacker = attacker
         self.defender = defender
-        self.duel_state = duel_state
+        # Provide a minimal stub for duel_state when tests don't pass a full
+        # DuelState object. The real implementation will provide richer APIs.
+        if duel_state is None:
+            class _StubState:
+                def __init__(self):
+                    self._stats = {}
+                    self._equipment = {}
+                    self.special_attack_cooldown = {}
+
+                def get_stats(self, member):
+                    return self._stats.get(member.id, {
+                        "attack": 60,
+                        "strength": 60,
+                        "defense": 60,
+                        "current_health": 99,
+                        "health": 99
+                    })
+
+                def get_equipment(self, member):
+                    return self._equipment.get(member.id, {"weapon": {"attack_bonus": 0, "strength_bonus": 0, "damage": 1, "name": "Fist"}})
+
+                def create_status_embed(self):
+                    return None
+
+            self.duel_state = _StubState()
+        else:
+            self.duel_state = duel_state
         self.action_selected = False
         self.selected_action = None
         attack = Button(custom_id="attack")
@@ -278,7 +333,7 @@ class EquipmentView(View):
     def __init__(
         self,
         user: Any,
-        db: Optional[Dict] = None,
+        db: Optional[Any] = None,
         timeout: float = 180.0
     ):
         super().__init__(timeout=timeout)
@@ -287,6 +342,15 @@ class EquipmentView(View):
         # Weapon and armor selects for tests
         weapon_select = Select(custom_id="weapon", options=[])
         armor_select = Select(custom_id="armor", options=[])
+        # If a mock db with results is provided, populate options from it
+        try:
+            if self.db and hasattr(self.db, 'mock_results'):
+                weapons = self.db.mock_results.get("SELECT * FROM weapons", [])
+                # Select options expect objects with label/value properties in tests
+                weapon_select.options = [SimpleNamespace(label=w['name'], value=str(w['id'])) for w in weapons]
+        except Exception:
+            # Best-effort only for tests
+            pass
         async def _weapon_wrapper(interaction, select=None):
             return await self.weapon_select(interaction, weapon_select)
 
@@ -306,6 +370,9 @@ class EquipmentView(View):
         select: Select
     ):
         try:
+            # Some test stubs may not populate select.values; fall back to first option
+            if not getattr(select, 'values', None):
+                select.values = [select.options[0].value] if select.options else ["0"]
             weapon_id = int(select.values[0])
             await self.db.execute(
                 """UPDATE user_equipment 

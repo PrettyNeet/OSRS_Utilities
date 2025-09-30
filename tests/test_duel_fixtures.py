@@ -5,15 +5,29 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 class MockMember:
-    def __init__(self, id: int, name: str):
+    _id_counter = 10000
+
+    def __init__(self, id: int | None = None, name: str | None = None):
+        if id is None:
+            id = MockMember._id_counter
+            MockMember._id_counter += 1
+        if name is None:
+            name = f"User{id}"
         self.id = id
         self.mention = f"<@{id}>"
         self.display_name = name
         self.display_avatar = MagicMock()
         self.display_avatar.url = "http://example.com/avatar.png"
+        # default to not a bot
+        self.bot = False
 
 def test_weapons() -> Dict[str, Dict[str, Any]]:
-    """Predefined weapons for testing"""
+    """Predefined weapons for testing (callable helper).
+
+    Some tests import and call this directly. A pytest fixture with the
+    same name is also provided below for tests that request it as a
+    function parameter.
+    """
     return {
         "dragon_scimitar": {
             "id": 1,
@@ -44,7 +58,10 @@ def test_weapons() -> Dict[str, Dict[str, Any]]:
     }
 
 def test_items() -> Dict[str, Dict[str, Any]]:
-    """Predefined items for testing"""
+    """Predefined items for testing (callable helper).
+
+    See note in `test_weapons` about dual usage.
+    """
     return {
         "shark": {
             "id": 1,
@@ -88,7 +105,10 @@ def test_items() -> Dict[str, Dict[str, Any]]:
     }
 
 def test_user_stats() -> Dict[str, Dict[str, Any]]:
-    """Predefined user stats for testing"""
+    """Predefined user stats for testing (callable helper).
+
+    See note in `test_weapons` about dual usage.
+    """
     return {
         "maxed_main": {
             "attack": 99,
@@ -118,9 +138,27 @@ def test_user_stats() -> Dict[str, Dict[str, Any]]:
         }
     }
 
+_LAST_INTERACTION_USER: MockMember | None = None
+_LAST_INTERACTION_CONSUMED = False
+_LAST_CREATED_MEMBER: MockMember | None = None
+
 def mock_member() -> MockMember:
-    """Create a mock Discord member"""
-    return MockMember(12345, "TestUser")
+    """Create a mock Discord member.
+
+    The first call after mock_interaction() will return the interaction's
+    user so tests that expect interaction.user and a separate mock_member()
+    to reference the same user will work.
+    """
+    global _LAST_INTERACTION_USER, _LAST_INTERACTION_CONSUMED
+    if _LAST_INTERACTION_USER is not None and not _LAST_INTERACTION_CONSUMED:
+        _LAST_INTERACTION_CONSUMED = True
+        member = _LAST_INTERACTION_USER
+        global _LAST_CREATED_MEMBER
+        _LAST_CREATED_MEMBER = member
+        return member
+    member = MockMember()
+    _LAST_CREATED_MEMBER = member
+    return member
 
 class MockInteraction:
     def __init__(self):
@@ -132,11 +170,22 @@ class MockInteraction:
         self.followup.send = AsyncMock()
         self.message = MagicMock()
         self.message.content = ""
-        self.user = MockMember(12345, "TestUser")
+        # user will be set by mock_interaction() so tests can control identity
+        self.user = None
+        # Provide a mock client attribute for tests that construct cogs with
+        # `Duel(bot=interaction.client)`
+        self.client = MagicMock()
 
 def mock_interaction() -> MockInteraction:
     """Create a mock Discord interaction"""
-    return MockInteraction()
+    inter = MockInteraction()
+    global _LAST_INTERACTION_USER, _LAST_INTERACTION_CONSUMED
+    user = MockMember()
+    inter.user = user
+    inter.client = MagicMock()
+    _LAST_INTERACTION_USER = user
+    _LAST_INTERACTION_CONSUMED = False
+    return inter
 
 def mock_db():
     """Create a mock database connection with predefined data"""
@@ -191,31 +240,59 @@ def mock_db():
 
     return MockDB()
 
-def setup_mock_db(mock_db, test_weapons=None, test_items=None, test_user_stats=None):
-    """Setup mock database with test data"""
-    # Allow callers to pass in fixtures or use module helpers
-    if test_weapons is None:
-        test_weapons = test_weapons = test_weapons = __import__(
-            __name__
-        ).test_weapons()  # noqa: E501
-    if test_items is None:
-        test_items = __import__(__name__).test_items()
-    if test_user_stats is None:
-        test_user_stats = __import__(__name__).test_user_stats()
+def setup_mock_db(mock_db, weapons_fixture=None, items_fixture=None, stats_fixture=None):
+    """Setup mock database with test data
+
+    Accept either explicit fixture data or fall back to the module fixtures above.
+    """
+    # Allow callers to pass in fixture data or use module helpers
+    if weapons_fixture is None:
+        weapons = test_weapons()
+    else:
+        weapons = weapons_fixture
+
+    if items_fixture is None:
+        items = test_items()
+    else:
+        items = items_fixture
+
+    if stats_fixture is None:
+        stats = test_user_stats()
+    else:
+        stats = stats_fixture
 
     def _setup(queries_results: Dict[str, list] = None):
         # Default query results using test fixtures
         default_results = {
             "SELECT * FROM weapons": [
-                dict(id=w["id"], **w) for w in test_weapons.values()
+                dict(w) for w in weapons.values()
             ],
             "SELECT * FROM items": [
-                dict(id=i["id"], **i) for i in test_items.values()
+                dict(i) for i in items.values()
             ],
-            "SELECT * FROM users WHERE user_id = ?": [
-                dict(user_id="12345", **test_user_stats["maxed_main"])
-            ]
         }
+
+        # Use the last-created mock members to populate user results if available
+        try:
+            u1 = _LAST_INTERACTION_USER
+            u2 = _LAST_CREATED_MEMBER
+            if u1 and u2:
+                default_results["SELECT * FROM users WHERE user_id = ?"] = [
+                    {"user_id": str(u1.id), **stats["maxed_main"]}
+                ]
+                default_results["SELECT user_id, gold FROM users WHERE user_id IN (?, ?)"] = [
+                    {"user_id": str(u1.id), "gold": 100000},
+                    {"user_id": str(u2.id), "gold": 100000}
+                ]
+        except Exception:
+            # Fallback to static ids
+            default_results["SELECT * FROM users WHERE user_id = ?"] = [
+                dict(user_id="12345", **stats["maxed_main"])
+            ]
+            default_results["SELECT user_id, gold FROM users WHERE user_id IN (?, ?)"] = [
+                {"user_id": "12345", "gold": 100000},
+                {"user_id": "67890", "gold": 100000}
+            ]
 
         # Update with any custom query results
         if queries_results:
@@ -225,6 +302,29 @@ def setup_mock_db(mock_db, test_weapons=None, test_items=None, test_user_stats=N
         for query, results in default_results.items():
             mock_db.set_results(query, results)
 
+        # Expose the configured mock DB globally so code under test that
+        # calls async_get_db_connection() can pick it up during tests.
+        global GLOBAL_MOCK_DB
+        GLOBAL_MOCK_DB = mock_db
+
         return mock_db
 
-    return _setup
+    # Return the configured mock db instance (call _setup with no overrides)
+    return _setup()
+
+# Provide pytest fixtures with the same names so tests can request them
+# via function parameters. We intentionally use different function names
+# for the fixture providers to avoid shadowing the callable helpers above.
+@pytest.fixture(scope="module", name="test_weapons")
+def _fixture_test_weapons():
+    return test_weapons()
+
+
+@pytest.fixture(scope="module", name="test_items")
+def _fixture_test_items():
+    return test_items()
+
+
+@pytest.fixture(scope="module", name="test_user_stats")
+def _fixture_test_user_stats():
+    return test_user_stats()

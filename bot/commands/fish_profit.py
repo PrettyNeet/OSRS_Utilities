@@ -109,8 +109,17 @@ class FishProfit(commands.Cog):
                     "GP/hr": gphr
                 })
 
-    view = FormatSelectView(bot=self.bot, interaction=interaction, fish_prices=profit_results)
-    await interaction.response.send_message("Choose the format for the reply:", view=view, ephemeral=True)
+        view = FormatSelectView(bot=self.bot, interaction=interaction, fish_prices=profit_results)
+        await _send_format_prompt(interaction, view)
+
+
+async def _send_format_prompt(interaction, view):
+    """Send the format selection prompt from within an async handler."""
+    await interaction.response.send_message(
+        "Choose the format for the reply:",
+        view=view,
+        ephemeral=True
+    )
 
 
 async def setup(bot):

@@ -193,3 +193,22 @@ def stub_calculate_custom_profit(monkeypatch):
         return [{"Herb": "Guam", "Seed Price": 10, "Grimy Herb Price": 100, "Profit per Run": 90}]
     monkeypatch.setattr('bot.commands.herb_profit.calculate_custom_profit', _stub)
     return _stub
+
+# Expose test data fixtures from tests.test_duel_fixtures for tests that
+# request them as pytest fixtures.
+from tests.test_duel_fixtures import test_weapons as _weapons_helper, test_items as _items_helper, test_user_stats as _stats_helper
+
+
+@pytest.fixture(scope="module")
+def test_weapons():
+    return _weapons_helper()
+
+
+@pytest.fixture(scope="module")
+def test_items():
+    return _items_helper()
+
+
+@pytest.fixture(scope="module")
+def test_user_stats():
+    return _stats_helper()
