@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from datetime import datetime, timedelta
-from bot.commands.duel_v2 import DuelCommand
+from bot.commands.duel import Duel
 from bot.utils.combat_mechanics import calculate_hit_chance, calculate_damage
 from tests.test_duel_fixtures import (
     mock_interaction, mock_member, mock_db,
@@ -18,7 +18,7 @@ async def test_full_duel_flow():
     mock_db_conn = setup_mock_db(mock_db())
     
     # Initialize duel command
-    duel_cog = DuelCommand(bot=interaction.client)
+    duel_cog = Duel(bot=interaction.client)
     
     # Start duel
     await duel_cog.duel(interaction, opponent)
@@ -69,8 +69,8 @@ async def test_duel_special_attacks():
     )
     
     # Initialize duel
-    duel_cog = DuelCommand(bot=interaction.client)
-    await duel_cog.duel(interaction, opponent)
+    duel_cog = Duel(bot=interaction.client)
+    await duel_cog.duel_challenge(interaction, opponent)
     
     # Skip to combat phase
     view = interaction.response.send_message.call_args[0][1]
@@ -109,8 +109,8 @@ async def test_duel_item_usage():
     )
     
     # Start duel
-    duel_cog = DuelCommand(bot=interaction.client)
-    await duel_cog.duel(interaction, opponent)
+    duel_cog = Duel(bot=interaction.client)
+    await duel_cog.duel_challenge(interaction, opponent)
     
     # Skip to combat
     view = interaction.response.send_message.call_args[0][1]
@@ -142,7 +142,7 @@ async def test_duel_timeout():
     mock_db_conn = setup_mock_db(mock_db())
     
     # Start duel with short timeout
-    duel_cog = DuelCommand(bot=interaction.client)
+    duel_cog = Duel(bot=interaction.client)
     duel_cog.DUEL_TIMEOUT = 0.1
     
     await duel_cog.duel(interaction, opponent)
@@ -164,8 +164,8 @@ async def test_duel_stats_update():
     mock_db_conn = setup_mock_db(mock_db())
     
     # Start and finish duel
-    duel_cog = DuelCommand(bot=interaction.client)
-    await duel_cog.duel(interaction, opponent)
+    duel_cog = Duel(bot=interaction.client)
+    await duel_cog.duel_challenge(interaction, opponent)
     
     # Force duel completion
     duel_cog._active_duels[challenger.id].winner = challenger

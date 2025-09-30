@@ -12,7 +12,6 @@ class MockMember:
         self.display_avatar = MagicMock()
         self.display_avatar.url = "http://example.com/avatar.png"
 
-@pytest.fixture
 def test_weapons() -> Dict[str, Dict[str, Any]]:
     """Predefined weapons for testing"""
     return {
@@ -44,7 +43,6 @@ def test_weapons() -> Dict[str, Dict[str, Any]]:
         }
     }
 
-@pytest.fixture
 def test_items() -> Dict[str, Dict[str, Any]]:
     """Predefined items for testing"""
     return {
@@ -89,7 +87,6 @@ def test_items() -> Dict[str, Dict[str, Any]]:
         }
     }
 
-@pytest.fixture
 def test_user_stats() -> Dict[str, Dict[str, Any]]:
     """Predefined user stats for testing"""
     return {
@@ -121,7 +118,6 @@ def test_user_stats() -> Dict[str, Dict[str, Any]]:
         }
     }
 
-@pytest.fixture
 def mock_member() -> MockMember:
     """Create a mock Discord member"""
     return MockMember(12345, "TestUser")
@@ -138,12 +134,10 @@ class MockInteraction:
         self.message.content = ""
         self.user = MockMember(12345, "TestUser")
 
-@pytest.fixture
 def mock_interaction() -> MockInteraction:
     """Create a mock Discord interaction"""
     return MockInteraction()
 
-@pytest.fixture
 def mock_db():
     """Create a mock database connection with predefined data"""
     class MockCursor:
@@ -197,9 +191,18 @@ def mock_db():
 
     return MockDB()
 
-@pytest.fixture
-def setup_mock_db(mock_db, test_weapons, test_items, test_user_stats):
+def setup_mock_db(mock_db, test_weapons=None, test_items=None, test_user_stats=None):
     """Setup mock database with test data"""
+    # Allow callers to pass in fixtures or use module helpers
+    if test_weapons is None:
+        test_weapons = test_weapons = test_weapons = __import__(
+            __name__
+        ).test_weapons()  # noqa: E501
+    if test_items is None:
+        test_items = __import__(__name__).test_items()
+    if test_user_stats is None:
+        test_user_stats = __import__(__name__).test_user_stats()
+
     def _setup(queries_results: Dict[str, list] = None):
         # Default query results using test fixtures
         default_results = {
@@ -213,15 +216,15 @@ def setup_mock_db(mock_db, test_weapons, test_items, test_user_stats):
                 dict(user_id="12345", **test_user_stats["maxed_main"])
             ]
         }
-        
+
         # Update with any custom query results
         if queries_results:
             default_results.update(queries_results)
-        
+
         # Set all results in mock db
         for query, results in default_results.items():
             mock_db.set_results(query, results)
-        
+
         return mock_db
-    
+
     return _setup
