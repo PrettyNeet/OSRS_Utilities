@@ -86,15 +86,41 @@ except Exception:
     commands = _CommandsStub()
     app_commands = _AppCommandsStub()
     Member = _Member
-from bot.utils.combat_views import DuelRequestView, CombatActionView, EquipmentView
+
+# Make SelectOption available regardless of which branch above ran
+SelectOption = discord.SelectOption
+
+from bot.utils.combat_views import DuelRequestView, CombatActionView
 from bot.utils.combat_mechanics import (
     process_hit, process_food_heal, process_potion_effect,
     get_combat_log_message
 )
 import aiosqlite
 from datetime import datetime, timedelta
-from bot.utils.DButil import async_get_db_connection
+from bot.utils.DButil import async_get_db_connection, DUMMY_USER_ID
 from typing import Dict, Optional, List
+
+
+def _xp_for_level(level: int) -> int:
+    """Total XP required to reach `level` from level 1 (level 1 = 0 XP)."""
+    return sum(l * 83 for l in range(1, level))
+
+
+def _level_from_xp(xp: int) -> int:
+    """Return the stat level for a given accumulated XP value (capped at 99)."""
+    level = 1
+    while level < 99 and xp >= _xp_for_level(level + 1):
+        level += 1
+    return level
+
+
+class _DummyMember:
+    """Fake discord.Member representing the Training Dummy bot."""
+    id = 0
+    display_name = "Training Dummy"
+    mention = "**Training Dummy**"
+    bot = False
+
 
 class Duel(commands.Cog):
     def __init__(self, bot):
@@ -175,7 +201,8 @@ class Duel(commands.Cog):
             f"**W/L Ratio:** {user_data['total_wins']/(user_data['total_losses'] or 1):.2f}\n"
         )
         embed.add_field(name="Record", value=record_text, inline=True)
-        
+        embed.add_field(name="Gold", value=f"{user_data['gold']:,} gp", inline=True)
+
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name='dm_inventory', description='View and manage your inventory')
@@ -218,9 +245,11 @@ class Duel(commands.Cog):
         )
         
         # Add equipment section
+        slots = ('weapon', 'head', 'body', 'legs', 'gloves', 'boots')
+        equipment_dict = dict(zip(slots, equipment)) if equipment else {s: None for s in slots}
         equipment_text = "\n".join([
             f"**{slot.title()}:** {item if item else 'None'}"
-            for slot, item in equipment.items()
+            for slot, item in equipment_dict.items()
         ])
         embed.add_field(name="Equipment", value=equipment_text, inline=False)
         
@@ -247,67 +276,203 @@ class Duel(commands.Cog):
         
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name='dm_equip', description='Equip or unequip items')
-    async def equip_item(self, interaction: 'discord.Interaction'):
+    @app_commands.command(
+        name='dm_equip',
+        description='Equip an item to a slot. Use "unequip" as item_name to clear a slot.'
+    )
+    async def equip_item(
+        self,
+        interaction: 'discord.Interaction',
+        slot: str,
+        item_name: str
+    ):
+        valid_slots = ('weapon', 'head', 'body', 'legs', 'gloves', 'boots')
+        slot = slot.lower()
+        if slot not in valid_slots:
+            await interaction.response.send_message(
+                f"Invalid slot. Choose from: {', '.join(valid_slots)}", ephemeral=True
+            )
+            return
+
         user_id = str(interaction.user.id)
-        
-        async with await async_get_db_connection() as db:
-            # Get all available items for each slot
-            available_items = {}
-            
-            # Get weapons
-            async with db.execute('''
-                SELECT w.id, w.name, w.attack_bonus as bonus
-                FROM user_inventory ui
-                JOIN weapons w ON ui.item_id = w.id
-                WHERE ui.user_id = ? AND ui.quantity > 0
-            ''', (user_id,)) as cursor:
-                available_items['weapon'] = [dict(row) for row in await cursor.fetchall()]
-            
-            # Get equipment for other slots
-            slots = ['head', 'body', 'legs', 'gloves', 'boots']
-            for slot in slots:
-                async with db.execute('''
-                    SELECT i.id, i.name, i.defense_bonus as bonus
-                    FROM user_inventory ui
-                    JOIN items i ON ui.item_id = i.id
-                    WHERE ui.user_id = ? AND ui.quantity > 0 AND i.slot = ?
-                ''', (user_id, slot)) as cursor:
-                    available_items[slot] = [dict(row) for row in await cursor.fetchall()]
-        
-        # Create equipment view
-        view = EquipmentView(interaction.user, available_items)
-        await interaction.response.send_message(
-            "Choose a slot and item to equip:",
-            view=view,
-            ephemeral=True
-        )
-        
-        # Wait for the selection
-        await view.wait()
-        if view.selected_slot and view.selected_item:
+
+        if item_name.lower() in ('unequip', 'none', 'remove'):
             async with await async_get_db_connection() as db:
-                # Handle unequip
-                if view.selected_item == "unequip":
-                    await db.execute(
-                        f'UPDATE user_equipment SET {view.selected_slot}_slot = NULL WHERE user_id = ?',
-                        (user_id,)
-                    )
-                    await interaction.followup.send(
-                        f"Unequipped item from {view.selected_slot} slot.",
-                        ephemeral=True
-                    )
-                else:
-                    # Equip new item
-                    await db.execute(
-                        f'UPDATE user_equipment SET {view.selected_slot}_slot = ? WHERE user_id = ?',
-                        (view.selected_item, user_id)
-                    )
-                    await interaction.followup.send(
-                        f"Successfully equipped item to {view.selected_slot} slot.",
-                        ephemeral=True
-                    )
+                await db.execute(
+                    f'UPDATE user_equipment SET {slot}_slot = NULL WHERE user_id = ?', (user_id,)
+                )
                 await db.commit()
+            await interaction.response.send_message(
+                f"Unequipped item from **{slot}** slot.", ephemeral=True
+            )
+            return
+
+        async with await async_get_db_connection() as db:
+            if slot == 'weapon':
+                async with db.execute('''
+                    SELECT w.id, w.name FROM user_inventory ui
+                    JOIN weapons w ON ui.item_id = w.id
+                    WHERE ui.user_id = ? AND LOWER(w.name) = LOWER(?) AND ui.quantity > 0
+                ''', (user_id, item_name)) as cursor:
+                    item = await cursor.fetchone()
+            else:
+                async with db.execute('''
+                    SELECT i.id, i.name FROM user_inventory ui
+                    JOIN items i ON ui.item_id = i.id
+                    WHERE ui.user_id = ? AND LOWER(i.name) = LOWER(?) AND ui.quantity > 0 AND i.slot = ?
+                ''', (user_id, item_name, slot)) as cursor:
+                    item = await cursor.fetchone()
+
+            if not item:
+                await interaction.response.send_message(
+                    f"**{item_name}** not found in your inventory for the **{slot}** slot.\n"
+                    f"Use /dm_inventory to see what you own.", ephemeral=True
+                )
+                return
+
+            await db.execute(
+                f'UPDATE user_equipment SET {slot}_slot = ? WHERE user_id = ?',
+                (item['id'], user_id)
+            )
+            await db.commit()
+
+        await interaction.response.send_message(
+            f"Equipped **{item['name']}** to your **{slot}** slot.", ephemeral=True
+        )
+
+    @app_commands.command(name='dm_shop', description='Browse weapons and items available for purchase')
+    async def view_shop(self, interaction: 'discord.Interaction'):
+        async with await async_get_db_connection() as db:
+            async with db.execute(
+                'SELECT name, damage, attack_bonus, strength_bonus, cost FROM weapons ORDER BY cost'
+            ) as cursor:
+                weapons = await cursor.fetchall()
+            async with db.execute(
+                'SELECT name, type, effect_type, effect_value, cost FROM items WHERE cost > 0 ORDER BY type, cost'
+            ) as cursor:
+                items = await cursor.fetchall()
+
+        embed = discord.Embed(title="DM Shop", color=discord.Color.gold())
+
+        weapon_lines = "\n".join(
+            f"**{w['name']}** — {w['cost']:,} gp | Dmg: {w['damage']} | Atk: +{w['attack_bonus']} Str: +{w['strength_bonus']}"
+            for w in weapons
+        )
+        embed.add_field(name="Weapons", value=weapon_lines or "None", inline=False)
+
+        for item_type in ('food', 'potion', 'equipment'):
+            type_items = [i for i in items if i['type'] == item_type]
+            if not type_items:
+                continue
+            lines = []
+            for i in type_items:
+                line = f"**{i['name']}** — {i['cost']:,} gp"
+                if i['effect_type'] == 'heal':
+                    line += f" | Heals {i['effect_value']} HP"
+                elif i['effect_type'] == 'boost':
+                    line += f" | +{i['effect_value']} combat stats"
+                lines.append(line)
+            embed.add_field(name=f"{item_type.title()}s", value="\n".join(lines), inline=True)
+
+        embed.set_footer(text="Use /dm_buy <item> [quantity] to purchase")
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name='dm_buy', description='Buy an item or weapon from the shop')
+    async def buy_item(self, interaction: 'discord.Interaction', item_name: str, quantity: int = 1):
+        if quantity < 1:
+            await interaction.response.send_message("Quantity must be at least 1.", ephemeral=True)
+            return
+
+        user_id = str(interaction.user.id)
+        async with await async_get_db_connection() as db:
+            async with db.execute('SELECT gold FROM users WHERE user_id = ?', (user_id,)) as cursor:
+                user = await cursor.fetchone()
+            if not user:
+                await interaction.response.send_message(
+                    "Register first with /dm_register.", ephemeral=True
+                )
+                return
+
+            # Search weapons first, then items (case-insensitive)
+            item_data = None
+            is_weapon = False
+            async with db.execute(
+                'SELECT id, name, cost FROM weapons WHERE LOWER(name) = LOWER(?)', (item_name,)
+            ) as cursor:
+                item_data = await cursor.fetchone()
+            if item_data:
+                is_weapon = True
+            else:
+                async with db.execute(
+                    'SELECT id, name, cost FROM items WHERE LOWER(name) = LOWER(?)', (item_name,)
+                ) as cursor:
+                    item_data = await cursor.fetchone()
+
+            if not item_data:
+                await interaction.response.send_message(
+                    f"**{item_name}** not found in the shop. Use /dm_shop to browse.", ephemeral=True
+                )
+                return
+
+            total_cost = item_data['cost'] * quantity
+            if user['gold'] < total_cost:
+                await interaction.response.send_message(
+                    f"You need {total_cost:,} gp but only have {user['gold']:,} gp.", ephemeral=True
+                )
+                return
+
+            await db.execute(
+                'UPDATE users SET gold = gold - ? WHERE user_id = ?', (total_cost, user_id)
+            )
+
+            async with db.execute(
+                'SELECT id, quantity FROM user_inventory WHERE user_id = ? AND item_id = ?',
+                (user_id, item_data['id'])
+            ) as cursor:
+                existing = await cursor.fetchone()
+
+            if existing:
+                await db.execute(
+                    'UPDATE user_inventory SET quantity = quantity + ? WHERE id = ?',
+                    (quantity, existing['id'])
+                )
+            else:
+                await db.execute(
+                    'INSERT INTO user_inventory (user_id, item_id, quantity) VALUES (?, ?, ?)',
+                    (user_id, item_data['id'], quantity)
+                )
+
+            await db.commit()
+
+        await interaction.response.send_message(
+            f"Purchased **{quantity}x {item_data['name']}** for {total_cost:,} gp!", ephemeral=True
+        )
+
+    @app_commands.command(name='dm_duel_bot', description='Practice a duel against the Training Dummy')
+    async def duel_bot(self, interaction: 'discord.Interaction'):
+        user_id = str(interaction.user.id)
+        async with await async_get_db_connection() as db:
+            async with db.execute(
+                'SELECT user_id FROM users WHERE user_id = ?', (user_id,)
+            ) as cursor:
+                if not await cursor.fetchone():
+                    await interaction.response.send_message(
+                        "Register first with /dm_register.", ephemeral=True
+                    )
+                    return
+            # Reset dummy HP before each fight
+            await db.execute(
+                'UPDATE users SET current_health = 99 WHERE user_id = ?', (DUMMY_USER_ID,)
+            )
+            cursor = await db.execute('''
+                INSERT INTO duels (user1_id, user2_id, user1_bet, user2_bet, active, current_turn, turn_start_time)
+                VALUES (?, ?, 0, 0, 1, ?, CURRENT_TIMESTAMP)
+            ''', (user_id, DUMMY_USER_ID, user_id))
+            duel_id = cursor.lastrowid
+            await db.commit()
+
+        dummy = _DummyMember()
+        await self._start_duel(duel_id, interaction.user, dummy, interaction)
 
     @app_commands.command(name='dm_duel', description='Challenge another player to a duel')
     async def duel_challenge(
@@ -465,11 +630,25 @@ class Duel(commands.Cog):
         
         current_user = duel_state['user1'] if duel_state['current_turn'] == duel_state['user1'].id else duel_state['user2']
         other_user = duel_state['user2'] if current_user == duel_state['user1'] else duel_state['user1']
-        
-        # Create action view
-        view = CombatActionView(current_user, duel_id)
-        
-        # Update inventory options
+
+        # Training Dummy always attacks — no UI needed
+        if str(current_user.id) == DUMMY_USER_ID:
+            prompt = await interaction.followup.send("**Training Dummy** swings at you...")
+            await self._process_action(
+                duel_id, current_user, other_user, 'attack', None, prompt, interaction
+            )
+            return
+
+        # Create action view with correct attacker/defender references
+        view = CombatActionView(
+            attacker=current_user,
+            defender=other_user,
+            duel_state=None,
+            db=None,
+            timeout=60.0
+        )
+
+        # Populate inventory select options from DB
         async with await async_get_db_connection() as db:
             async with db.execute('''
                 SELECT i.name, i.type, ui.quantity
@@ -478,16 +657,20 @@ class Duel(commands.Cog):
                 WHERE ui.user_id = ? AND ui.quantity > 0
             ''', (str(current_user.id),)) as cursor:
                 inventory = await cursor.fetchall()
-            
-            # Update view's inventory options
-            view.inventory_select.options = [
+
+            options = [
                 SelectOption(
                     label=f"{item['name']} x{item['quantity']}",
                     value=item['name'],
                     description=f"Type: {item['type']}"
                 ) for item in inventory
             ]
-        
+            if options:
+                view.inventory_select.options = options
+            else:
+                # Discord rejects Select components with 0 options — remove it
+                view.children.remove(view.inventory_select)
+
         # Send turn prompt
         prompt = await interaction.followup.send(
             f"{current_user.mention}'s turn! Choose your action:",
@@ -509,7 +692,8 @@ class Duel(commands.Cog):
             other_user,
             view.selected_action,
             view.selected_item,
-            prompt
+            prompt,
+            interaction
         )
 
     async def _process_action(
@@ -519,7 +703,8 @@ class Duel(commands.Cog):
         defender: Member,
         action: str,
         item: Optional[str],
-        message: discord.Message
+        message: discord.Message,
+        interaction: 'discord.Interaction'
     ):
         """Process a combat action and update the game state"""
         async with await async_get_db_connection() as db:
@@ -549,6 +734,7 @@ class Duel(commands.Cog):
             
             # Process the action
             action_result = None
+            new_health = None  # only set for attack/special; guarded before use
             if action in ['attack', 'special']:
                 # Process attack
                 hit_result = process_hit(
@@ -677,17 +863,17 @@ class Duel(commands.Cog):
             embed=embed
         )
         
-        # Check if duel is over
-        if new_health <= 0:
+        # Check if duel is over (only relevant after an attack/special action)
+        if new_health is not None and new_health <= 0:
             await self._end_duel(duel_id, defender, attacker, message)
             return
-        
+
         # Switch turns
         self.active_duels[duel_id]['current_turn'] = defender.id
         self.active_duels[duel_id]['turn_count'] += 1
         self.active_duels[duel_id]['last_action'] = datetime.now()
-        
-        # Start next turn
+
+        # Start next turn (interaction threaded through from _process_turn)
         await self._process_turn(duel_id, interaction)
 
     async def _handle_timeout(
@@ -751,20 +937,74 @@ class Duel(commands.Cog):
             )
             
             await db.commit()
-        
+
+        # Grant XP (skip for the dummy itself)
+        turn_count = self.active_duels.get(duel_id, {}).get('turn_count', 0)
+        winner_xp = 100 + turn_count * 2
+        loser_xp  = 50  + turn_count
+
+        winner_lvlups: dict = {}
+        loser_lvlups:  dict = {}
+        if str(winner.id) != DUMMY_USER_ID:
+            winner_lvlups = await self._grant_xp(str(winner.id), winner_xp)
+        if str(loser.id) != DUMMY_USER_ID:
+            loser_lvlups = await self._grant_xp(str(loser.id), loser_xp)
+
+        # Build level-up text
+        def _lvlup_text(lvlups: dict) -> str:
+            if not lvlups:
+                return ""
+            parts = [f"{stat.title()} {old}→{new}" for stat, (old, new) in lvlups.items()]
+            return "  Level up! " + ", ".join(parts)
+
         # Send victory message
         await message.edit(
             content=(
-                f"🏆 {winner.mention} has won the duel against {loser.mention}!\n"
-                f"Prize: {total_pot} gold"
+                f"**{winner.mention}** has won the duel against {loser.mention}!\n"
+                f"Prize: {total_pot:,} gp | XP gained: {winner_xp}"
+                + _lvlup_text(winner_lvlups)
+                + (f"\n{loser.mention} gained {loser_xp} XP" + _lvlup_text(loser_lvlups)
+                   if str(loser.id) != DUMMY_USER_ID else "")
             ),
             embed=None,
             view=None
         )
-        
+
         # Clean up duel state
         if duel_id in self.active_duels:
             del self.active_duels[duel_id]
+
+    async def _grant_xp(self, user_id: str, xp_amount: int) -> dict:
+        """Grant XP evenly across attack/strength/defense/health; return {stat: (old_lvl, new_lvl)} for any level-ups."""
+        level_ups: dict = {}
+        xp_per_stat = max(1, xp_amount // 4)
+        stats = ('attack', 'strength', 'defense', 'health')
+
+        async with await async_get_db_connection() as db:
+            async with db.execute(
+                'SELECT attack, strength, defense, health, '
+                'attack_xp, strength_xp, defense_xp, health_xp '
+                'FROM users WHERE user_id = ?',
+                (user_id,)
+            ) as cursor:
+                user = await cursor.fetchone()
+            if not user:
+                return level_ups
+
+            for stat in stats:
+                old_level = user[stat]
+                new_xp = user[f'{stat}_xp'] + xp_per_stat
+                new_level = _level_from_xp(new_xp)
+                await db.execute(
+                    f'UPDATE users SET {stat}_xp = ?, {stat} = ? WHERE user_id = ?',
+                    (new_xp, new_level, user_id)
+                )
+                if new_level > old_level:
+                    level_ups[stat] = (old_level, new_level)
+
+            await db.commit()
+
+        return level_ups
 
     async def _create_duel_state_embed(self, duel_id: int) -> discord.Embed:
         """Create an embed showing the current duel state"""

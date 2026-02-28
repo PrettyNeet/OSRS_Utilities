@@ -202,8 +202,10 @@ class CombatActionView(View):
             self.duel_state = duel_state
         self.action_selected = False
         self.selected_action = None
+        self.selected_item = None
         attack = Button(custom_id="attack")
         special = Button(custom_id="special")
+        self.inventory_select = Select(custom_id="inventory", options=[])
 
         async def _attack_wrapper(interaction, button=None):
             return await self.attack_button(interaction, attack)
@@ -211,14 +213,32 @@ class CombatActionView(View):
         async def _special_wrapper(interaction, button=None):
             return await self.special_button(interaction, special)
 
+        async def _inventory_wrapper(interaction, select=None):
+            return await self._inventory_select_callback(interaction, self.inventory_select)
+
+        self.inventory_select._callback = _inventory_wrapper
         attack._callback = _attack_wrapper
         special._callback = _special_wrapper
-        self.children.extend([attack, special])
+        self.children.extend([attack, special, self.inventory_select])
     
+    @property
+    def action_taken(self) -> bool:
+        """Alias for action_selected for compatibility with duel.py."""
+        return self.action_selected
+
+    async def _inventory_select_callback(self, interaction: Any, select: 'Select') -> None:
+        """Handle inventory item selection (food/potion use)."""
+        values = getattr(select, 'values', None) or []
+        if values:
+            self.selected_item = values[0]
+            self.selected_action = "use_item"
+            self.action_selected = True
+            self.stop()
+
     async def interaction_check(self, interaction: Any) -> bool:
         """Only allow the current attacker to interact with this view"""
         return interaction.user.id == self.attacker.id
-    
+
     @discord.ui.button(
         label="Attack",
         style=discord.ButtonStyle.primary,

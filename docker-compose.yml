@@ -6,6 +6,7 @@ services:
       dockerfile: ./Dockerfile
     environment:
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
     volumes:
       - .:/app
       - ./logs:/app/logs
